@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento de Usuários</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: white;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+        form input, form textarea, form select {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        form button {
+            padding: 10px;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        form button:hover {
+            background-color: #555;
+        }
+        .admin-panel {
+            margin-top: 20px;
+        }
+        .user {
+            border-bottom: 1px solid #ddd;
+            padding: 10px 0;
+        }
+        #calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .day {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background: #f9f9f9;
+            text-align: center;
+        }
+        .day h3 {
+            margin: 0 0 5px;
+        }
+        .day img {
+            max-width: 100%;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Gerenciamento de Usuários</h1>
+        <select id="language-select">
+            <option value="en">English</option>
+            <option value="pt">Português</option>
+        </select>
+    </header>
+    <div class="container">
+        <h2 id="register-login-title">Registro/Login</h2>
+        <form id="register-form">
+            <input type="text" id="username" placeholder="Nome de Usuário" required>
+            <input type="password" id="password" placeholder="Senha" required>
+            <button type="submit">Registrar/Login</button>
+        </form>
+        
+        <div id="user-panel" style="display: none;">
+            <h2 id="user-panel-title">Painel do Usuário</h2>
+            <form id="note-form">
+                <textarea id="note" placeholder="Escreva sua anotação..."></textarea>
+                <input type="file" id="photo" accept="image/*">
+                <input type="date" id="date" required>
+                <button type="submit">Adicionar</button>
+            </form>
+            <div id="calendar"></div>
+        </div>
+
+        <div id="admin-panel" class="admin-panel" style="display: none;">
+            <h2 id="admin-panel-title">Painel do Administrador</h2>
+            <div id="all-users"></div>
+        </div>
+    </div>
+
+    <script>
+        const users = {};
+        let currentUser = null;
+
+        const translations = {
+            en: {
+                "register-login-title": "Register/Login",
+                "username-placeholder": "Username",
+                "password-placeholder": "Password",
+                "register-login-button": "Register/Login",
+                "user-panel-title": "User Panel",
+                "note-placeholder": "Write your note...",
+                "add-button": "Add",
+                "admin-panel-title": "Admin Panel"
+            },
+            pt: {
+                "register-login-title": "Registro/Login",
+                "username-placeholder": "Nome de Usuário",
+                "password-placeholder": "Senha",
+                "register-login-button": "Registrar/Login",
+                "user-panel-title": "Painel do Usuário",
+                "note-placeholder": "Escreva sua anotação...",
+                "add-button": "Adicionar",
+                "admin-panel-title": "Painel do Administrador"
+            }
+        };
+
+        document.getElementById('language-select').addEventListener('change', function (e) {
+            const selectedLang = e.target.value;
+            translatePage(selectedLang);
+        });
+
+        function translatePage(lang) {
+            const elements = document.querySelectorAll('[id]');
+            elements.forEach(el => {
+                const key = el.id;
+                if (translations[lang][key]) {
+                    if (el.placeholder !== undefined) {
+                        el.placeholder = translations[lang][key];
+                    } else {
+                        el.textContent = translations[lang][key];
+                    }
+                }
+            });
+
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const registerButton = document.querySelector('#register-form button');
+
+            usernameInput.placeholder = translations[lang]['username-placeholder'];
+            passwordInput.placeholder = translations[lang]['password-placeholder'];
+            registerButton.textContent = translations[lang]['register-login-button'];
+        }
+
+        document.getElementById('register-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (!users[username]) {
+                users[username] = { password, notes: [] };
+                alert('Usuário registrado com sucesso!');
+            } else if (users[username].password !== password) {
+                alert('Senha incorreta!');
+                return;
+            }
+
+            currentUser = username;
+            document.getElementById('register-form').style.display = 'none';
+            document.getElementById('user-panel').style.display = 'block';
+
+            if (username === 'admin') {
+                document.getElementById('admin-panel').style.display = 'block';
+                renderAdminPanel();
+            }
+
+            renderCalendar();
+        });
+
+        document.getElementById('note-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const note = document.getElementById('note').value;
+            const photo = document.getElementById('photo').files[0];
+            const date = document.getElementById('date').value;
+
+            if (note || photo) {
+                users[currentUser].notes.push({ note, photo: photo ? URL.createObjectURL(photo) : null, date });
+                renderCalendar();
+                document.getElementById('note-form').reset();
+            }
+        });
+
+        function renderCalendar() {
+            const calendar = document.getElementById('calendar');
+            calendar.innerHTML = '';
+
+            const days = {};
+            users[currentUser].notes.forEach((entry) => {
+                if (!days[entry.date]) {
+                    days[entry.date] = [];
+                }
+                days[entry.date].push(entry);
+            });
+
+            Object.keys(days).forEach((date) => {
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'day';
+                dayDiv.innerHTML = `<h3>${date}</h3>`;
+
+                days[date].forEach((entry) => {
+                    if (entry.note) {
+                        dayDiv.innerHTML += `<p>${entry.note}</p>`;
+                    }
+                    if (entry.photo) {
+                        dayDiv.innerHTML += `<img src="${entry.photo}" alt="Foto">`;
+                    }
+                });
+
+                calendar.appendChild(dayDiv);
+            });
+        }
+
+        function renderAdminPanel() {
+            const allUsers = document.getElementById('all-users');
+            allUsers.innerHTML = '';
+            Object.keys(users).forEach((username) => {
+                const div = document.createElement('div');
+                div.className = 'user';
+                div.innerHTML = `<h3>${username}</h3>`;
+                users[username].notes.forEach((entry) => {
+                    div.innerHTML += `<p>${entry.note || ''}</p>`;
+                    if (entry.photo) {
+                        div.innerHTML += `<img src="${entry.photo}" alt="Foto" style="max-width: 100%;">`;
+                    }
+                });
+                allUsers.appendChild(div);
+            });
+        }
+    </script>
+</body>
+</html>
